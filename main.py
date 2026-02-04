@@ -29,8 +29,13 @@ from transformers import pipeline
 
 app = FastAPI(title="AI Voice Detection API", version="1.0")
 @app.get("/")
+@app.post("/")
 async def root():
-    return {"status": "success", "message": "AI Voice Detection API is Online"}
+    return {
+        "status": "success",
+        "message": "AI Voice Detection API is Online",
+        "instructions": "Send POST requests to /api/voice-detection with your Base64 audio."
+    }
 
 # --------------------------------------------------
 # Configuration
