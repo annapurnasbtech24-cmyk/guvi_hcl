@@ -54,7 +54,7 @@ DEVICE = 0 if torch.cuda.is_available() else -1
 # which supports Indian languages reasonably well.
 detector = pipeline(
     task="audio-classification",
-    model="Gustking/wav2vec2-large-xlsr-deepfake-audio-classification",
+    model="HyperMoon/wav2vec2-base-960h-finetuned-deepfake",
     device=DEVICE
 )
 
