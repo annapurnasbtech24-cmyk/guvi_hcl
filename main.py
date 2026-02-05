@@ -60,17 +60,11 @@ DEVICE = 0 if torch.cuda.is_available() else -1
 # NOTE:
 # This model is multilingual and based on XLSR,
 # which supports Indian languages reasonably well.
-from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
-
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
-    "facebook/wav2vec2-base-xlsr-53"
+detector = pipeline(
+    task="audio-classification",
+    model="HyperMoon/wav2vec2-base-960h-finetuned-deepfake",
+    device=DEVICE
 )
-
-model = Wav2Vec2Model.from_pretrained(
-    "facebook/wav2vec2-base-xlsr-53"
-)
-
-model.eval()
 
 # --------------------------------------------------
 # API Endpoint
@@ -131,16 +125,7 @@ async def detect_voice(
         ## --------------------------------------------------
         # 4. Audio Loading (Minimal Processing)
         # --------------------------------------------------
-        speech, sr = librosa.load(
-            temp_file,
-            sr=16000,
-            offset=0.5,
-            duration=4.0
-        )
-        
-        speech, _ = librosa.effects.trim(speech)
-        speech = librosa.util.normalize(speech)
-
+        speech, sr = librosa.load(temp_file, sr=None)
 
         # Resample ONLY if required
         if sr != 16000:
@@ -168,43 +153,16 @@ async def detect_voice(
         # --------------------------------------------------
         # 5. Model Inference
         # --------------------------------------------------
-        inputs = feature_extractor(
-            speech,
-            sampling_rate=16000,
-            return_tensors="pt"
-        )
+        results = detector(speech)
 
-        
-        with torch.no_grad():
-            outputs = model(**inputs)
-        
-        # Shape: (batch, time, features)
-        embeddings = outputs.last_hidden_state.squeeze(0).numpy()
-        
-        # Acoustic naturalness metrics
-        temporal_variance = np.var(embeddings, axis=0).mean()
-        frame_energy = np.mean(np.abs(speech))
-        
-        # Decision logic (tuned for Indian languages)
-        # --------------------------------------------------
-        # Decision & Confidence Computation (DATA-DRIVEN)
-        # --------------------------------------------------
+        top_result = results[0]
+        label = top_result["label"].lower()
+        confidence = float(top_result["score"])
 
-        # Normalize metrics into 0–1 range
-        tv_score = np.clip((0.02 - temporal_variance) / 0.02, 0.0, 1.0)
-        energy_score = np.clip(frame_energy / 0.1, 0.0, 1.0)
-        
-        # Final confidence from acoustic evidence
-        confidence = float((tv_score + energy_score) / 2)
-        
-        if confidence > 0.65:
-            classification = "AI_GENERATED"
-            explanation = "Overly smooth acoustic patterns indicative of synthetic speech"
-        else:
-            classification = "HUMAN"
-            explanation = "Natural temporal variations in human speech detected"
+        # Handle different label naming conventions safely
+        is_ai_generated = label in ["fake", "spoof", "ai", "synthetic"]
 
-
+        classification = "AI_GENERATED" if is_ai_generated else "HUMAN"
 
         # --------------------------------------------------
         # 6. Construct Response
@@ -213,10 +171,13 @@ async def detect_voice(
             "status": "success",
             "language": language,
             "classification": classification,
-            "confidenceScore": float(confidence),
-            "explanation": explanation
+            "confidenceScore": round(confidence, 2),
+            "explanation": (
+                "Unnatural spectral and temporal artifacts detected"
+                if is_ai_generated
+                else "Natural human vocal patterns observed"
+            )
         }
-
 
     except Exception as e:
         # --------------------------------------------------
