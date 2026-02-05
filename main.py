@@ -171,7 +171,7 @@ async def detect_voice(
             "status": "success",
             "language": language,
             "classification": classification,
-            "confidenceScore": float(confidence),
+            "confidenceScore": confidence,
             "explanation": (
                 "Unnatural spectral and temporal artifacts detected"
                 if is_ai_generated
