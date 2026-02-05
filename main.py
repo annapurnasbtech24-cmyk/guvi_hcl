@@ -60,13 +60,13 @@ DEVICE = 0 if torch.cuda.is_available() else -1
 # NOTE:
 # This model is multilingual and based on XLSR,
 # which supports Indian languages reasonably well.
-from transformers import AutoProcessor, AutoModel
+from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 
-processor = AutoProcessor.from_pretrained(
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
     "facebook/wav2vec2-base-xlsr-53"
 )
 
-model = AutoModel.from_pretrained(
+model = Wav2Vec2Model.from_pretrained(
     "facebook/wav2vec2-base-xlsr-53"
 )
 
@@ -168,11 +168,12 @@ async def detect_voice(
         # --------------------------------------------------
         # 5. Model Inference
         # --------------------------------------------------
-        inputs = processor(
+        inputs = feature_extractor(
             speech,
             sampling_rate=16000,
             return_tensors="pt"
         )
+
         
         with torch.no_grad():
             outputs = model(**inputs)
